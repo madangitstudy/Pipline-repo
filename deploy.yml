@@ -1,0 +1,32 @@
+name: CI/CD Pipeline for AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Log in to Amazon ECR
+        run: |
+          echo "${{ secrets.AWS_ACCESS_KEY_ID }}" | docker login -u AWS --password-stdin ${{ secrets.ECR_REPO }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t springboot-app .
+          docker tag springboot-app:latest ${{ secrets.ECR_REPO }}/springboot-app:latest
+          docker push ${{ secrets.ECR_REPO }}/springboot-app:latest
+
+      - name: Create a New Deployment in AWS CodeDeploy
+        run: |
+          aws deploy create-deployment \
+            --application-name springboot-codedeploy \
+            --deployment-group-name springboot-deployment-group \
+            --revision "revisionType=AppSpecContent,appspecContent=file://appspec.yaml"
+
