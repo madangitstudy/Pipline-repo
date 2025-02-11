@@ -6,12 +6,21 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build JAR File
+        run: mvn clean package
 
       - name: Log in to Amazon ECR
         run: |
@@ -23,9 +32,6 @@ jobs:
           docker tag springboot-app:latest ${{ secrets.ECR_REPO }}/springboot-app:latest
           docker push ${{ secrets.ECR_REPO }}/springboot-app:latest
 
-      - name: Create a New Deployment in AWS CodeDeploy
+      - name: Deploy to AWS ECS
         run: |
-          aws deploy create-deployment \
-            --application-name springboot-codedeploy \
-            --deployment-group-name springboot-deployment-group \
-            --revision "revisionType=AppSpecContent,appspecContent=file://appspec.yaml"
+          aws ecs update-service --cluster springboot-cluster --service springboot-service --force-new-deployment
